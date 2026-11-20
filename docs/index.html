@@ -162,17 +162,6 @@
       padding: 0.1em 0.4em; border-radius: 6px; background: var(--tile);
     }
 
-    /* A sketch of the new page: header at the top left, ruled like a template. */
-    .page {
-      max-width: 22rem; margin: 2.5rem auto 0; aspect-ratio: 1404 / 1100;
-      background: #ffffff; color: #111111; border-radius: 10px; box-shadow: var(--shadow);
-      padding: 1.6rem 1.6rem 0;
-      background-image: repeating-linear-gradient(to bottom, transparent 0 2.1rem, #d6d6d2 2.1rem calc(2.1rem + 1px));
-      background-position: 0 4.2rem;
-      font-size: 1.35rem; font-weight: 500; letter-spacing: -0.005em;
-    }
-    .page-caption { text-align: center; color: var(--muted); font-size: 0.875rem; margin-top: 0.85rem; }
-
     .notes { max-width: 40rem; margin: 0 auto; padding-left: 1.25rem; }
     .notes li { margin: 0.6rem 0; }
 
@@ -197,7 +186,7 @@
     @media (prefers-contrast: more) {
       :root { --muted: var(--ink); --line: var(--ink); }
       .bar { background: var(--paper); -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: 0 1px 0 var(--ink); }
-      .tile, .story, .page { border: 2px solid var(--ink); }
+      .tile, .story { border: 2px solid var(--ink); }
     }
 
     /* Lightbox: screenshots open over the page, with previous/next */
@@ -324,8 +313,6 @@
       <li>Tap the notebook that gets the meeting page.</li>
       <li>Done: your selection is a link. Tap it to open the new page.</li>
     </ol>
-    <div class="page" role="img" aria-label="A sketch of the new page: the header Meeting 2026-11-20 at the top left, on the template of the previous page">Meeting 2026-11-20</div>
-    <p class="page-caption">The new page, at the end of the notebook you picked</p>
   </section>
 
   <section id="screenshots" aria-labelledby="screenshots-title">
