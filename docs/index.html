@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141414" media="(prefers-color-scheme: dark)">
+  <title>SNAddPage</title>
+  <meta name="description" content="A Supernote plugin that adds a dated meeting page to a notebook and links your lasso selection to it.">
+  <link rel="icon" href="icon.png">
+  <style>
+    :root {
+      --ink: #111111;
+      --paper: #ffffff;
+      --muted: #5c5c5c;
+      --tile: #f4f4f2;
+      --line: rgba(0, 0, 0, 0.12);
+      --bar: rgba(255, 255, 255, 0.72);
+      --shadow: 0 18px 40px rgba(0, 0, 0, 0.12);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --ink: #ededed;
+        --paper: #141414;
+        --muted: #a3a3a3;
+        --tile: #1f1f1f;
+        --line: rgba(255, 255, 255, 0.14);
+        --bar: rgba(20, 20, 20, 0.72);
+        --shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
+      }
+    }
+
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    @media (prefers-reduced-motion: no-preference) {
+      html { scroll-behavior: smooth; }
+    }
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font: 1.0625rem/1.6 system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    a { color: inherit; }
+    :focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; border-radius: 6px; }
+
+    /* Translucent bar: content scrolls underneath; a hairline appears only once it overlaps content. */
+    .bar {
+      position: sticky; top: 0; z-index: 10;
+      background: var(--bar);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      backdrop-filter: saturate(180%) blur(20px);
+      box-shadow: 0 1px 0 transparent;
+      transition: box-shadow 200ms ease;
+    }
+    .bar.scrolled { box-shadow: 0 1px 0 var(--line); }
+    .bar-inner {
+      max-width: 1040px; margin: 0 auto; padding: 0.6rem 1.25rem;
+      display: flex; align-items: center; gap: 0.75rem;
+    }
+    .brand {
+      display: flex; align-items: center; gap: 0.55rem; margin-right: auto;
+      font-weight: 650; letter-spacing: -0.01em; text-decoration: none;
+    }
+    .brand img { width: 28px; height: 28px; border-radius: 7px; background: #ffffff; padding: 3px; }
+    .bar nav { display: flex; gap: 1.1rem; font-size: 0.875rem; letter-spacing: 0.005em; }
+    .bar nav a { text-decoration: none; color: var(--muted); }
+    .bar nav a:hover { color: var(--ink); }
+
+    main { max-width: 1040px; margin: 0 auto; padding: 0 1.25rem 5rem; }
+    section { margin-top: 6.5rem; scroll-margin-top: 4.5rem; }
+
+    /* Hero */
+    .hero { margin-top: 4rem; text-align: center; }
+    .hero-icon {
+      width: 104px; height: 104px; padding: 16px;
+      background: #ffffff; border-radius: 26px; box-shadow: var(--shadow);
+    }
+    h1 {
+      font-size: clamp(2.5rem, 7vw, 4rem); line-height: 1.04; letter-spacing: -0.03em;
+      font-weight: 750; margin: 1.75rem 0 0.75rem;
+    }
+    .tagline {
+      font-size: clamp(1.15rem, 2.6vw, 1.45rem); line-height: 1.35; letter-spacing: -0.01em;
+      color: var(--muted); margin: 0 auto; max-width: 32rem;
+    }
+    .story {
+      max-width: 36rem; margin: 2.25rem auto 0; padding: 1.1rem 1.4rem;
+      background: var(--tile); border-radius: 16px;
+      font-style: italic; line-height: 1.55;
+    }
+
+    .actions { display: flex; flex-wrap: wrap; gap: 0.75rem; justify-content: center; margin-top: 2.25rem; }
+    .button {
+      display: inline-flex; align-items: center; min-height: 48px; padding: 0 1.4rem;
+      border-radius: 999px; border: 2px solid var(--ink);
+      font-weight: 650; letter-spacing: -0.005em; text-decoration: none;
+      transition: transform 100ms ease-out, background-color 150ms ease;
+    }
+    .button.primary { background: var(--ink); color: var(--paper); }
+    .button.small { min-height: 36px; padding: 0 1rem; font-size: 0.875rem; }
+    .button:hover { background-color: var(--tile); }
+    .button.primary:hover { background-color: var(--ink); opacity: 0.88; }
+    .button:active { transform: scale(0.97); } /* feedback on press, not on release */
+    .note { margin-top: 1rem; color: var(--muted); font-size: 0.9375rem; letter-spacing: 0.005em; }
+
+    h2 {
+      font-size: clamp(1.75rem, 4vw, 2.5rem); line-height: 1.12; letter-spacing: -0.022em;
+      font-weight: 720; margin: 0 0 0.5rem; text-align: center;
+    }
+    .lead { text-align: center; color: var(--muted); margin: 0 auto 2.5rem; max-width: 40rem; }
+
+    /* Features as tiles */
+    .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1rem; }
+    .tile { background: var(--tile); border-radius: 20px; padding: 1.4rem 1.5rem; }
+    .tile h3 { margin: 0 0 0.4rem; font-size: 1.15rem; line-height: 1.25; letter-spacing: -0.012em; font-weight: 680; }
+    .tile p { margin: 0; color: var(--muted); line-height: 1.5; }
+    .tile .example { color: var(--ink); font-weight: 600; white-space: nowrap; }
+
+    /* Numbered steps (how it works, install) */
+    .steps { list-style: none; padding: 0; margin: 0 auto; max-width: 40rem; counter-reset: step; }
+    .steps li {
+      counter-increment: step; position: relative;
+      padding: 0.95rem 0 0.95rem 3.25rem; border-bottom: 1px solid var(--line);
+    }
+    .steps li:last-child { border-bottom: 0; }
+    .steps li::before {
+      content: counter(step); position: absolute; left: 0; top: 0.8rem;
+      width: 2.1rem; height: 2.1rem; border-radius: 50%;
+      display: grid; place-items: center;
+      background: var(--ink); color: var(--paper); font-weight: 700; font-size: 0.95rem;
+    }
+    code {
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;
+      padding: 0.1em 0.4em; border-radius: 6px; background: var(--tile);
+    }
+
+    /* A sketch of the new page: header at the top left, ruled like a template. */
+    .page {
+      max-width: 22rem; margin: 2.5rem auto 0; aspect-ratio: 1404 / 1100;
+      background: #ffffff; color: #111111; border-radius: 10px; box-shadow: var(--shadow);
+      padding: 1.6rem 1.6rem 0;
+      background-image: repeating-linear-gradient(to bottom, transparent 0 2.1rem, #d6d6d2 2.1rem calc(2.1rem + 1px));
+      background-position: 0 4.2rem;
+      font-size: 1.35rem; font-weight: 500; letter-spacing: -0.005em;
+    }
+    .page-caption { text-align: center; color: var(--muted); font-size: 0.875rem; margin-top: 0.85rem; }
+
+    .notes { max-width: 40rem; margin: 0 auto; padding-left: 1.25rem; }
+    .notes li { margin: 0.6rem 0; }
+
+    footer {
+      max-width: 1040px; margin: 0 auto; padding: 2rem 1.25rem 3rem;
+      border-top: 1px solid var(--line);
+      text-align: center; color: var(--muted); font-size: 0.875rem; letter-spacing: 0.005em;
+    }
+
+    @media (max-width: 560px) {
+      .bar nav { display: none; }
+      .hero { margin-top: 2.75rem; }
+      section { margin-top: 4.5rem; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .button, .bar { transition: none; }
+      .button:active { transform: none; }
+    }
+    @media (prefers-reduced-transparency: reduce) {
+      .bar { background: var(--paper); -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: 0 1px 0 var(--line); }
+    }
+    @media (prefers-contrast: more) {
+      :root { --muted: var(--ink); --line: var(--ink); }
+      .bar { background: var(--paper); -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: 0 1px 0 var(--ink); }
+      .tile, .story, .page { border: 2px solid var(--ink); }
+    }
+  </style>
+</head>
+<body>
+<header class="bar" id="bar">
+  <div class="bar-inner">
+    <a class="brand" href="#top"><img src="icon.png" alt="">SNAddPage</a>
+    <nav aria-label="Sections">
+      <a href="#features">Features</a>
+      <a href="#how">How it works</a>
+      <a href="#install">Install</a>
+    </nav>
+    <a class="button primary small" href="https://github.com/Vampie/SNAddPage/releases/latest/download/SNAddPage.snplg">Download</a>
+  </div>
+</header>
+
+<main id="top">
+  <section class="hero">
+    <img class="hero-icon" src="icon.png" alt="">
+    <h1>SNAddPage</h1>
+    <p class="tagline">Turn a line in your notes into a link to a fresh meeting page.</p>
+
+    <p class="story">
+      Write the topic in your agenda, lasso it, pick your meetings notebook, and the page
+      for the minutes is ready, dated and linked.
+    </p>
+
+    <div class="actions">
+      <a class="button primary" href="https://github.com/Vampie/SNAddPage/releases/latest/download/SNAddPage.snplg">Download SNAddPage.snplg</a>
+      <a class="button" href="https://github.com/Vampie/SNAddPage">Source on GitHub</a>
+    </div>
+    <p class="note">Free and open source. So far only tested on a Supernote Nomad (A6X2).</p>
+  </section>
+
+  <section id="features" aria-labelledby="features-title">
+    <h2 id="features-title">What it does</h2>
+    <p class="lead">One button in the lasso toolbar of a note, full screen, and closes with the ✕.</p>
+    <div class="tiles">
+      <div class="tile">
+        <h3>From the lasso</h3>
+        <p>Select handwriting or a text box and tap <b>Add meeting</b>. That selection becomes the link.</p>
+      </div>
+      <div class="tile">
+        <h3>Any notebook</h3>
+        <p>Every note in your <code>Note</code> folder, with the open note on top and the one you used last right below. The open note itself works too.</p>
+      </div>
+      <div class="tile">
+        <h3>Same paper</h3>
+        <p>The new page gets the template of the last page, also when that is your own template from <code>MyStyle</code>.</p>
+      </div>
+      <div class="tile">
+        <h3>Dated header</h3>
+        <p><span class="example">Meeting 2026-11-20</span> at the top left of the page, and as a keyword, so you find it in the keyword list.</p>
+      </div>
+      <div class="tile">
+        <h3>A link that stays right</h3>
+        <p>A normal Supernote link with an underline. It keeps pointing to the meeting page when you add pages before it.</p>
+      </div>
+      <div class="tile">
+        <h3>No surprises</h3>
+        <p>If a step fails, you see which one, what the device answered and what was already done.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="how" aria-labelledby="how-title">
+    <h2 id="how-title">How it works</h2>
+    <p class="lead">Four taps, and you are back in your note.</p>
+    <ol class="steps">
+      <li>In a note, select a few words with the <b>lasso</b>: handwriting, or one text box.</li>
+      <li>Tap <b>Add meeting</b> in the lasso toolbar.</li>
+      <li>Tap the notebook that gets the meeting page.</li>
+      <li>Done: your selection is a link. Tap it to open the new page.</li>
+    </ol>
+    <div class="page" role="img" aria-label="A sketch of the new page: the header Meeting 2026-11-20 at the top left, on the template of the previous page">Meeting 2026-11-20</div>
+    <p class="page-caption">The new page, at the end of the notebook you picked</p>
+  </section>
+
+  <section id="install" aria-labelledby="install-title">
+    <h2 id="install-title">Install</h2>
+    <ol class="steps" style="margin-top: 2rem">
+      <li>Download <code>SNAddPage.snplg</code> with the button above.</li>
+      <li>Connect your Supernote by USB and copy the file to the <code>MyStyle</code> folder.</li>
+      <li>On the device, go to Settings → Apps → Plugins → Add Plugin, pick the file and install it.</li>
+      <li>Open a note and lasso something: <b>Add meeting</b> is now in the lasso toolbar.</li>
+    </ol>
+    <p class="story">The first time, the device asks permission to read and to change your notes. Grant it, or the plugin can't add the page.</p>
+  </section>
+
+  <section id="notes" aria-labelledby="notes-title">
+    <h2 id="notes-title">Good to know</h2>
+    <ul class="notes">
+      <li>Only notes in the <code>Note</code> folder are listed, plus the open note. Notes on an SD card or a USB stick are not.</li>
+      <li>The header is a text box and a keyword, not a real title: plugins can only make titles from handwriting in the open note.</li>
+      <li>A text box with a link is no longer editable, because a tap follows the link. Remove the link to edit it.</li>
+      <li>Nothing is undone automatically when a step fails. The plugin tells you what to clean up.</li>
+      <li>So far it is only tested on a Supernote Nomad (A6X2). Tried it on another device? Let me know in an <a href="https://github.com/Vampie/SNAddPage/issues">issue</a>.</li>
+    </ul>
+  </section>
+</main>
+
+<footer>
+  Made by Vampie with Claude ·
+  <a href="https://github.com/Vampie/SNAddPage">Source</a> ·
+  <a href="https://github.com/Vampie/SNAddPage/releases">Releases</a>
+</footer>
+
+<script>
+  // Show the bar's hairline only once content scrolls underneath it.
+  const bar = document.getElementById('bar');
+  const update = () => bar.classList.toggle('scrolled', window.scrollY > 4);
+  addEventListener('scroll', update, {passive: true});
+  update();
+</script>
+</body>
+</html>

@@ -1,97 +1,165 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+<p align="center">
+  <img src="assets/icons/plugin.png" width="72" alt="SNAddPage icon">
+</p>
 
-# Getting Started
+<h1 align="center">SNAddPage</h1>
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+<p align="center">
+  <b>Turn a line in your notes into a link to a fresh meeting page.</b>
+</p>
 
-## Step 1: Start Metro
+<p align="center">
+  <img src="https://img.shields.io/badge/Supernote-plugin-000000" alt="Supernote plugin">
+  <img src="https://img.shields.io/badge/tested%20on-Nomad%20(A6X2)-000000" alt="Tested on Nomad (A6X2)">
+  <img src="https://img.shields.io/badge/React%20Native-0.79.2-000000" alt="React Native 0.79.2">
+</p>
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+A plugin for **Supernote** e-ink devices (Nomad, Manta, A5X, A6X). Select a few words
+in a note with the lasso, tap **Add meeting**, and pick a notebook. The plugin adds a
+page at the end of that notebook, writes `Meeting 2026-11-20` at the top, and turns
+your selection into a link to that page.
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+Handy for an agenda or a to-do list: write the topic, link it to a page in your
+meetings notebook, and take the notes there.
 
-```sh
-# Using npm
-npm start
+Built with the official Supernote plugin SDK
+([`sn-plugin-lib`](https://docs.supernote.com/en)) on React Native 0.79.2.
 
-# OR using Yarn
-yarn start
+> [!NOTE]
+> For now this plugin is only tested on a **Supernote Nomad (A6X2)**. It should work on
+> the other models, but the place and size of the header may need tuning there.
+> Feedback from other devices is welcome.
+
+---
+
+## Features
+
+- **One tap from the lasso**: select handwriting or a text box, and *Add meeting* is in
+  the lasso toolbar.
+- **Any notebook**: all notes in the `Note` folder, with the open note on top and the
+  one you picked last right below it. The open note itself works too.
+- **Same paper**: the new page gets the template of the last page, also when that is
+  your own template from `MyStyle`.
+- **Dated header**: `Meeting YYYY-MM-DD` (today, in the device's time) as a text box at
+  the top left, and as a keyword, so the meeting shows up in the keyword list of the note.
+- **A real link**: your selection becomes a Supernote link (solid underline) to the new
+  page. It keeps pointing to that page when you add pages before it later.
+- **Clear when something fails**: you see which step failed and what was already done,
+  so nothing changes behind your back.
+- **Made for e-ink**: black and white, large touch targets, no animations.
+
+## Installation
+
+1. Download `SNAddPage.snplg` from the
+   [latest release](https://github.com/Vampie/SNAddPage/releases/latest),
+   or build it yourself (see [Building from source](#building-from-source)).
+2. Connect the Supernote by USB and copy the `.snplg` file to the **`MyStyle`** folder.
+3. On the device, go to **Settings → Apps → Plugins → Add Plugin**, pick the file and
+   install it.
+4. Open a note and select something with the lasso: **Add meeting** is now in the lasso
+   toolbar.
+
+The first time, the device asks permission to read and to change your notes. Allow it
+to go on.
+
+To update, install the new package the same way. It replaces the old version.
+
+## Using it
+
+1. In a note, select a few words with the **lasso**: handwriting, or one text box.
+2. Tap **Add meeting** in the lasso toolbar.
+3. Tap the notebook that gets the meeting page. `✕` closes the list without changing
+   anything.
+4. The plugin closes. Your selection is now a link: tap it to go to the new page.
+
+What happens to the chosen notebook:
+
+| | |
+| --- | --- |
+| New page | Added after the last page, with the template of that last page. |
+| Header | `Meeting 2026-11-20` as a text box at the top left of the new page. |
+| Keyword | The same text, on the new page. |
+| Link | Your selection points to the new page. |
+
+> [!TIP]
+> A text box with a link on it is no longer editable: a tap follows the link. That is how
+> the Supernote handles links. Remove the link to edit the text, then add it again.
+
+When a step fails, the plugin stays open and shows the step and the device's answer,
+plus the steps that were already done. Nothing is undone automatically: if the page was
+already added, delete it yourself or use undo in the note.
+
+## Limitations
+
+- **Only the `Note` folder** is listed (with its subfolders), plus the open note. Notes on
+  an SD card or a USB stick are not.
+- **No real title**: plugins can only make a title from handwriting in the open note, so
+  the header is a text box plus a keyword. It does not appear in the title list.
+- **Your own templates** must still be in `MyStyle`; otherwise the new page is blank and
+  the plugin tells you so.
+- **Full screen only**: the SDK has no floating or smaller plugin window.
+- **Only tested on a Supernote Nomad (A6X2)** so far.
+
+## Building from source
+
+You need [Node.js](https://nodejs.org) 18 or newer and npm. No Android SDK or JDK is
+needed: this is a pure JavaScript plugin.
+
+```bash
+npm install
+npm test               # helper tests (jest)
+npm run typecheck
+npm run lint
+npm run build:plugin   # → build/outputs/SNAddPage.snplg
 ```
 
-## Step 2: Build and run your app
+`npm run build:plugin` runs the official `buildPlugin.ps1` (PowerShell). On macOS or
+Linux, run `./buildPlugin.sh` instead.
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
+For every new build you install on a device, raise `versionCode` and `versionName` in
+`PluginConfig.json`. Never change `pluginID`: the device would see it as a different
+plugin.
 
-### Android
+## Project structure
 
-```sh
-# Using npm
-npm run android
-
-# OR using Yarn
-yarn android
+```
+├── index.js              Plugin entry: lasso toolbar button and its listener
+├── App.tsx               UI: note list, progress, errors
+├── src/
+│   ├── addMeeting.ts     The flow: list notes, add the page, header, keyword, link
+│   ├── meeting.ts        Pure helpers: title, list order, folder scan, header box, template names
+│   └── presses.ts        Passes button presses from index.js to the UI
+├── __tests__/            Jest tests for the helpers
+├── PluginConfig.json     Plugin name, version and permissions
+└── buildPlugin.ps1/.sh   Official Supernote packaging scripts
 ```
 
-### iOS
+## Notes for plugin developers
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
+Found while building this, with `sn-plugin-lib` 0.1.65 on a Nomad:
 
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
+- `FileUtils.getFileList` makes PluginHost crash: the plugin view flashes and closes, and
+  the next button press is lost while PluginHost restarts. Its native code calls
+  `getCurrentActivity()` without a null check (as do `getImageList` and
+  `getExternalDirPath`). `FileUtils.listFiles(dir)` works; it returns
+  `[{path, type: 0 folder | 1 file}]` or `null`, not the `string[]` its types say.
+- Register `registerButtonListener` in `index.js`, right after `registerButton`. A
+  listener registered in the UI's `useEffect` never got the press here.
+- Linking first (to the page about to be added) failed with the lasso gone by then; the
+  exact cause is unknown. Adding the page first and linking last works.
+- For a custom template, `getNotePageTemplate` returns `{name: "user_<file>", md5:
+  "<md5>_<number>"}`, and `insertNotePage` refuses that name with
+  `802: Background template file does not exist!`. The plugin then tries the template
+  image from `MyStyle` (found by file name or by the md5 part), then the file name
+  without `user_`. One of those works; which one is not logged.
+- `setLassoStrokeLink` also works on a text box in the lasso.
 
-```sh
-bundle install
-```
+## Permissions
 
-Then, and every time you update your native dependencies, run:
+| Permission | Why |
+| --- | --- |
+| `plugin.permission.FILE:READ` | To list your notes, read the selection and find your template in `MyStyle`. |
+| `plugin.permission.FILE:WRITE` | To add the page, the header, the keyword and the link. |
 
-```sh
-bundle exec pod install
-```
-
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
-
-```sh
-# Using npm
-npm run ios
-
-# OR using Yarn
-yarn ios
-```
-
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
-
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
-
-## Step 3: Modify your app
-
-Now that you have successfully run the app, let's make changes!
-
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
-
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
-
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+The plugin only touches the note you are in and the note you pick, and does not use the
+internet.
