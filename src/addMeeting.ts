@@ -21,10 +21,11 @@ import {
   ListDir,
   FONT_SIZE,
   headerRect,
-  meetingTitle,
+  fillTitle,
   NoteFile,
   Rect,
 } from './meeting';
+import {loadSettings} from './settings';
 
 /** Shape of every PluginCommAPI/PluginNoteAPI/PluginFileAPI result (the SDK does not export it). */
 type APIResponse<T> = {
@@ -417,6 +418,7 @@ async function insertHeader(
   notePath: string,
   page: number,
   title: string,
+  at: {left: number; top: number},
 ): Promise<void> {
   const size = unwrap<{width: number; height: number}>(
     await PluginFileAPI.getPageSize(notePath, page),
@@ -432,7 +434,7 @@ async function insertHeader(
     element.textBox = Object.assign(new TextBox(), {
       fontSize: FONT_SIZE,
       textContentFull: title,
-      textRect: headerRect(title, size),
+      textRect: headerRect(title, size, at),
     });
     expectTrue(
       await PluginFileAPI.insertElements(notePath, page, [element]),
@@ -452,7 +454,8 @@ export async function addMeeting(
   target: string,
   current: string | null,
 ): Promise<string[]> {
-  const title = meetingTitle(new Date());
+  const settings = await loadSettings();
+  const title = fillTitle(settings.title, new Date());
   const isCurrent = target === current;
   const done: string[] = [];
   const fail = (name: string, e: unknown): StepError =>
@@ -490,7 +493,7 @@ export async function addMeeting(
     insertPage(target, page),
   );
   await step(`Write "${title}" on ${pageLabel}`, () =>
-    insertHeader(target, page, title),
+    insertHeader(target, page, title, settings),
   );
   await step(`Add keyword "${title}"`, async () =>
     expectTrue(

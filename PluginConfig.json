@@ -4,8 +4,8 @@
     "iconPath":  "assets/icons/plugin.png",
     "desc":  "Adds a dated meeting page at the end of a note and links your lasso selection to it",
     "name":  "SNAddPage",
-    "versionCode":  "8",
-    "versionName":  "0.0.8",
+    "versionCode":  "9",
+    "versionName":  "0.0.9",
     "jsMainPath":  "index",
     "uses-permissions":  ["plugin.permission.FILE:READ", "plugin.permission.FILE:WRITE"]
 }

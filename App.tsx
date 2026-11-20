@@ -5,19 +5,47 @@
  */
 
 import React, {useEffect, useRef, useState} from 'react';
-import {FlatList, Pressable, StyleSheet, Text, View} from 'react-native';
+import {
+  FlatList,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import {PluginManager} from 'sn-plugin-lib';
 import {addMeeting, loadNotes, StepError} from './src/addMeeting';
-import {describeNote, NoteFile, orderNotes} from './src/meeting';
+import {
+  DEFAULT_SETTINGS,
+  describeNote,
+  fillTitle,
+  NoteFile,
+  orderNotes,
+  parseSettings,
+  PLACEHOLDERS,
+} from './src/meeting';
 import {onPress, pressCount, startedAt} from './src/presses';
+import {loadSettings, saveSettings} from './src/settings';
 
 // Kept while PluginHost runs, lost when it restarts (the SDK has no storage API).
 let lastTarget: string | null = null;
 
+type ListScreen = {kind: 'list'; current: string | null; notes: NoteFile[]};
+
 type Screen =
   | {kind: 'waiting'}
   | {kind: 'loading'; step: string}
-  | {kind: 'list'; current: string | null; notes: NoteFile[]}
+  | ListScreen
+  | {
+      kind: 'settings';
+      /** The list to go back to. */
+      list: ListScreen;
+      title: string;
+      left: string;
+      top: string;
+      error: string | null;
+    }
   | {kind: 'working'; target: string}
   | {kind: 'warnings'; warnings: string[]}
   | {kind: 'error'; message: string; done: string[]};
@@ -65,6 +93,40 @@ function App(): React.JSX.Element {
 
   const close = () => PluginManager.closePluginView();
 
+  const openSettings = async (list: ListScreen) => {
+    const {title, left, top} = await loadSettings();
+    setScreen({
+      kind: 'settings',
+      list,
+      title,
+      left: String(left),
+      top: String(top),
+      error: null,
+    });
+  };
+
+  /** Changes fields of the settings screen (ignored once another screen shows). */
+  const editSettings = (
+    change: Partial<{title: string; left: string; top: string; error: string | null}>,
+  ) => setScreen(s => (s.kind === 'settings' ? {...s, ...change} : s));
+
+  const save = async () => {
+    if (screen.kind !== 'settings') {
+      return;
+    }
+    const settings = parseSettings(screen.title, screen.left, screen.top);
+    if (typeof settings === 'string') {
+      editSettings({error: settings});
+      return;
+    }
+    try {
+      await saveSettings(settings);
+      setScreen(screen.list);
+    } catch (e) {
+      editSettings({error: `Not saved: ${(e as Error).message}`});
+    }
+  };
+
   const choose = async (target: string, current: string | null) => {
     lastTarget = target;
     setScreen({kind: 'working', target});
@@ -84,7 +146,17 @@ function App(): React.JSX.Element {
   return (
     <View style={styles.screen}>
       <View style={styles.topBar}>
-        <Text style={styles.title}>Add meeting to…</Text>
+        <Text style={styles.title}>
+          {screen.kind === 'settings' ? 'Settings' : 'Add meeting to…'}
+        </Text>
+        {screen.kind === 'list' && (
+          <Pressable
+            style={styles.button}
+            onPress={() => openSettings(screen)}
+            accessibilityRole="button">
+            <Text style={styles.buttonText}>Settings</Text>
+          </Pressable>
+        )}
         <Pressable
           style={styles.roundButton}
           onPress={close}
@@ -136,6 +208,70 @@ function App(): React.JSX.Element {
             </Text>
           )}
         </View>
+      )}
+      {screen.kind === 'settings' && (
+        <ScrollView keyboardShouldPersistTaps="handled">
+          <Text style={styles.label}>Title of the new page</Text>
+          <TextInput
+            style={styles.input}
+            value={screen.title}
+            onChangeText={title => editSettings({title, error: null})}
+            autoCorrect={false}
+          />
+          <Text style={styles.folder}>
+            Placeholders: {PLACEHOLDERS.join('  ')}
+          </Text>
+          <Text style={styles.message}>
+            Now: {fillTitle(screen.title, new Date())}
+          </Text>
+          <Text style={styles.label}>Place, in pixels from the top left</Text>
+          <View style={styles.offsets}>
+            <Text style={styles.message}>Left</Text>
+            <TextInput
+              style={[styles.input, styles.number]}
+              value={screen.left}
+              onChangeText={left => editSettings({left, error: null})}
+              keyboardType="number-pad"
+            />
+            <Text style={styles.message}>Top</Text>
+            <TextInput
+              style={[styles.input, styles.number]}
+              value={screen.top}
+              onChangeText={top => editSettings({top, error: null})}
+              keyboardType="number-pad"
+            />
+          </View>
+          {screen.error !== null && (
+            <Text style={styles.label}>{screen.error}</Text>
+          )}
+          <View style={styles.offsets}>
+            <Pressable
+              style={[styles.button, styles.primary]}
+              onPress={save}
+              accessibilityRole="button">
+              <Text style={[styles.buttonText, styles.primaryText]}>Save</Text>
+            </Pressable>
+            <Pressable
+              style={styles.button}
+              onPress={() => setScreen(screen.list)}
+              accessibilityRole="button">
+              <Text style={styles.buttonText}>Cancel</Text>
+            </Pressable>
+            <Pressable
+              style={styles.button}
+              onPress={() =>
+                editSettings({
+                  title: DEFAULT_SETTINGS.title,
+                  left: String(DEFAULT_SETTINGS.left),
+                  top: String(DEFAULT_SETTINGS.top),
+                  error: null,
+                })
+              }
+              accessibilityRole="button">
+              <Text style={styles.buttonText}>Defaults</Text>
+            </Pressable>
+          </View>
+        </ScrollView>
       )}
       {screen.kind === 'list' && (
         <FlatList
@@ -225,6 +361,46 @@ const styles = StyleSheet.create({
   message: {
     fontSize: 18,
     color: '#000000',
+  },
+  button: {
+    marginRight: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderWidth: 2,
+    borderColor: '#000000',
+    borderRadius: 22,
+  },
+  buttonText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#000000',
+  },
+  primary: {
+    backgroundColor: '#000000',
+  },
+  primaryText: {
+    color: '#ffffff',
+  },
+  input: {
+    marginVertical: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderWidth: 2,
+    borderColor: '#000000',
+    borderRadius: 8,
+    fontSize: 20,
+    color: '#000000',
+  },
+  number: {
+    width: 110,
+    marginLeft: 8,
+    marginRight: 24,
+  },
+  offsets: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    marginTop: 8,
   },
 });
 

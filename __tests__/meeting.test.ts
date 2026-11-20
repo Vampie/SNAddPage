@@ -1,20 +1,68 @@
 import {
   customTemplateKey,
+  decodeSettings,
+  DEFAULT_SETTINGS,
   DirEntry,
   describeNote,
+  encodeSettings,
+  fillTitle,
   findNotes,
   headerRect,
-  meetingTitle,
   orderNotes,
+  parseSettings,
 } from '../src/meeting';
 
 const note = (path: string) => ({path, name: path.split('/').pop() ?? ''});
 
-describe('meetingTitle', () => {
-  it('uses the local date with zero padding', () => {
-    expect(meetingTitle(new Date(2026, 0, 5, 23, 59))).toBe(
-      'Meeting 2026-01-05',
-    );
+describe('fillTitle', () => {
+  // Monday 5 January 2026, 08:04 local time
+  const date = new Date(2026, 0, 5, 8, 4);
+
+  it('gives the old header with the default title', () => {
+    expect(fillTitle(DEFAULT_SETTINGS.title, date)).toBe('Meeting 2026-01-05');
+  });
+
+  it('fills every placeholder with zero padding', () => {
+    expect(
+      fillTitle(
+        '{weekday} {day}/{month}/{year} {hour}h{minute} = {date} {time}',
+        date,
+      ),
+    ).toBe('Monday 05/01/2026 08h04 = 2026-01-05 08:04');
+  });
+
+  it('leaves unknown placeholders and plain braces alone', () => {
+    expect(fillTitle('Team {foo} {DATE} {}', date)).toBe('Team {foo} {DATE} {}');
+  });
+});
+
+describe('settings', () => {
+  it('survive a round trip through a folder name', () => {
+    const settings = {title: 'Overleg {date} / 50% {time}', left: 120, top: 80};
+    const name = encodeSettings(settings);
+    expect(name).not.toMatch(/[/\\]/);
+    expect(decodeSettings(name)).toEqual(settings);
+  });
+
+  it('ignore folder names that are not settings', () => {
+    expect(decodeSettings('something-else')).toBeNull();
+    expect(decodeSettings('s1_%E0%A4%A')).toBeNull();
+    expect(decodeSettings(`s1_${encodeURIComponent('["x", "1", 2]')}`)).toBeNull();
+  });
+
+  it('are parsed from the settings screen', () => {
+    expect(parseSettings(' Meeting {date} ', '100', '107')).toEqual({
+      title: 'Meeting {date}',
+      left: 100,
+      top: 107,
+    });
+  });
+
+  it('refuse an empty title, offsets that are no whole numbers, and titles too long to store', () => {
+    expect(parseSettings('  ', '1', '1')).toMatch(/title/i);
+    expect(parseSettings('x', '-5', '1')).toMatch(/left/i);
+    expect(parseSettings('x', '1', '1.5')).toMatch(/top/i);
+    expect(parseSettings('é'.repeat(200), '1', '1')).toMatch(/long/i);
   });
 });
 
@@ -89,21 +137,34 @@ describe('customTemplateKey', () => {
 });
 
 describe('headerRect', () => {
+  const nomad = {width: 1404, height: 1872};
+
   it('stays on a small page', () => {
-    const rect = headerRect('Meeting 2026-11-20', {width: 600, height: 800});
+    const rect = headerRect('Meeting 2026-11-20', {width: 600, height: 800}, DEFAULT_SETTINGS);
     expect(rect.left).toBeGreaterThanOrEqual(0);
     expect(rect.right).toBeLessThanOrEqual(600);
     expect(rect.right - rect.left).toBeGreaterThan(0);
     expect(rect.bottom - rect.top).toBeGreaterThan(0);
   });
 
-  it('sits 7 px below the left margin', () => {
-    const rect = headerRect('Meeting 2026-11-20', {width: 1404, height: 1872});
-    expect(rect.top - rect.left).toBe(7);
+  it('starts at the default place (100, 107), as on v0.0.5-v0.0.8', () => {
+    const rect = headerRect('Meeting 2026-11-20', nomad, DEFAULT_SETTINGS);
+    expect([rect.left, rect.top]).toEqual([100, 107]);
+  });
+
+  it('uses the chosen offsets', () => {
+    const rect = headerRect('Hi', nomad, {left: 300, top: 40});
+    expect([rect.left, rect.top]).toEqual([300, 40]);
+  });
+
+  it('keeps the box on the page when the offsets are too big', () => {
+    const rect = headerRect('Meeting 2026-11-20', nomad, {left: 5000, top: 5000});
+    expect(rect.right).toBe(nomad.width);
+    expect(rect.bottom).toBe(nomad.height);
   });
 
   it('fits the title on a Nomad page', () => {
-    const rect = headerRect('Meeting 2026-11-20', {width: 1404, height: 1872});
+    const rect = headerRect('Meeting 2026-11-20', nomad, DEFAULT_SETTINGS);
     expect(rect.right - rect.left).toBeGreaterThan(18 * 64 * 0.6);
   });
 });

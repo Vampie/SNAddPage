@@ -17,6 +17,7 @@
       --tile: #f4f4f2;
       --line: rgba(0, 0, 0, 0.12);
       --bar: rgba(255, 255, 255, 0.72);
+      --bezel: #2a2a2a;
       --shadow: 0 18px 40px rgba(0, 0, 0, 0.12);
     }
     @media (prefers-color-scheme: dark) {
@@ -27,6 +28,7 @@
         --tile: #1f1f1f;
         --line: rgba(255, 255, 255, 0.14);
         --bar: rgba(20, 20, 20, 0.72);
+        --bezel: #3a3a3a;
         --shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
       }
     }
@@ -111,6 +113,30 @@
     }
     .lead { text-align: center; color: var(--muted); margin: 0 auto 2.5rem; max-width: 40rem; }
 
+    /* Screenshots in a device frame; swipeable row on narrow screens */
+    .gallery { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.75rem; max-width: 40rem; margin: 0 auto; }
+    .gallery figure { margin: 0; }
+    .gallery a { display: block; text-decoration: none; }
+    .device {
+      background: var(--bezel); padding: 9px 9px 22px; border-radius: 18px;
+      box-shadow: var(--shadow);
+      transition: transform 150ms ease-out;
+    }
+    .device img { display: block; width: 100%; height: auto; border-radius: 4px; background: #ffffff; }
+    .gallery a:active .device { transform: scale(0.98); }
+    figcaption { margin-top: 0.85rem; text-align: center; font-size: 0.875rem; color: var(--muted); letter-spacing: 0.005em; }
+
+    @media (max-width: 560px) {
+      .gallery {
+        grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 72%;
+        overflow-x: auto; scroll-snap-type: x mandatory; overscroll-behavior-x: contain;
+        padding: 0.5rem 1.25rem 1.5rem; margin: 0 -1.25rem; scroll-padding: 0 1.25rem;
+        scrollbar-width: none;
+      }
+      .gallery::-webkit-scrollbar { display: none; }
+      .gallery figure { scroll-snap-align: start; }
+    }
+
     /* Features as tiles */
     .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1rem; }
     .tile { background: var(--tile); border-radius: 20px; padding: 1.4rem 1.5rem; }
@@ -162,8 +188,8 @@
       section { margin-top: 4.5rem; }
     }
     @media (prefers-reduced-motion: reduce) {
-      .button, .bar { transition: none; }
-      .button:active { transform: none; }
+      .button, .device, .bar { transition: none; }
+      .button:active, .gallery a:active .device { transform: none; }
     }
     @media (prefers-reduced-transparency: reduce) {
       .bar { background: var(--paper); -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: 0 1px 0 var(--line); }
@@ -172,6 +198,53 @@
       :root { --muted: var(--ink); --line: var(--ink); }
       .bar { background: var(--paper); -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: 0 1px 0 var(--ink); }
       .tile, .story, .page { border: 2px solid var(--ink); }
+    }
+
+    /* Lightbox: screenshots open over the page, with previous/next */
+    html:has(.lightbox[open]) { overflow: hidden; }
+    .lightbox {
+      width: 100vw; height: 100vh; height: 100dvh; max-width: none; max-height: none;
+      margin: 0; padding: 0; border: 0; background: transparent; color: #ffffff;
+    }
+    .lightbox[open] { display: grid; place-items: center; }
+    .lightbox::backdrop { background: rgba(10, 10, 10, 0.86); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+    .lb-figure { margin: 0; display: grid; justify-items: center; gap: 0.8rem; }
+    .lb-figure img {
+      display: block; width: auto; height: auto;
+      max-width: calc(100vw - 8.5rem); max-height: calc(100vh - 7rem); max-height: calc(100dvh - 7rem);
+      border-radius: 10px; background: #ffffff; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+      touch-action: pan-y; user-select: none; -webkit-user-select: none; -webkit-user-drag: none;
+      transition: transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    .lb-figure figcaption { color: rgba(255, 255, 255, 0.85); font-size: 0.9375rem; letter-spacing: 0.005em; }
+    .lb-btn {
+      position: fixed; z-index: 1; width: 48px; height: 48px; padding: 0;
+      display: grid; place-items: center; border: 0; border-radius: 50%;
+      background: rgba(255, 255, 255, 0.16); color: #ffffff; cursor: pointer;
+      -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+      transition: transform 100ms ease-out, background-color 150ms ease;
+    }
+    .lb-btn:hover { background: rgba(255, 255, 255, 0.28); }
+    .lb-btn:active { transform: scale(0.94); }
+    .lb-btn svg { width: 22px; height: 22px; }
+    .lb-btn:focus-visible { outline-color: #ffffff; }
+    .lb-prev { left: 1.25rem; top: 50%; margin-top: -24px; }
+    .lb-next { right: 1.25rem; top: 50%; margin-top: -24px; }
+    .lb-close { right: 1.25rem; top: 1.25rem; }
+    .lightbox[open] .lb-figure { animation: lb-in 220ms ease-out; }
+    .lightbox[open]::backdrop { animation: lb-fade 220ms ease-out; }
+    @keyframes lb-in { from { opacity: 0; transform: scale(0.96); } }
+    @keyframes lb-fade { from { opacity: 0; } }
+    @media (max-width: 560px) {
+      .lb-figure img { max-width: calc(100vw - 2rem); max-height: calc(100dvh - 9.5rem); }
+      .lb-prev, .lb-next { top: auto; bottom: 1.25rem; margin-top: 0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .lb-figure img, .lb-btn { transition: none; }
+      .lightbox[open] .lb-figure, .lightbox[open]::backdrop { animation: none; }
+    }
+    @media (prefers-contrast: more) {
+      .lb-btn { background: #000000; border: 2px solid #ffffff; }
     }
   </style>
 </head>
@@ -182,6 +255,7 @@
     <nav aria-label="Sections">
       <a href="#features">Features</a>
       <a href="#how">How it works</a>
+      <a href="#screenshots">Screenshots</a>
       <a href="#install">Install</a>
     </nav>
     <a class="button primary small" href="https://github.com/Vampie/SNAddPage/releases/latest/download/SNAddPage.snplg">Download</a>
@@ -227,6 +301,10 @@
         <p><span class="example">Meeting 2026-11-20</span> at the top left of the page, and as a keyword, so you find it in the keyword list.</p>
       </div>
       <div class="tile">
+        <h3>Your own header</h3>
+        <p>Under <b>Settings</b>, type your own title with placeholders such as <span class="example">{weekday}</span> and <span class="example">{time}</span>, and choose where it goes on the page.</p>
+      </div>
+      <div class="tile">
         <h3>A link that stays right</h3>
         <p>A normal Supernote link with an underline. It keeps pointing to the meeting page when you add pages before it.</p>
       </div>
@@ -250,6 +328,21 @@
     <p class="page-caption">The new page, at the end of the notebook you picked</p>
   </section>
 
+  <section id="screenshots" aria-labelledby="screenshots-title">
+    <h2 id="screenshots-title">On the Nomad</h2>
+    <p class="lead">Tap a screenshot to see it full size.</p>
+    <div class="gallery">
+      <figure>
+        <a href="screenshots/Settings.png"><div class="device"><img src="screenshots/Settings.png" width="1404" height="1872" loading="lazy" alt="The Settings screen with the title Meeting {weekday} {date}, its preview Meeting Friday 2026-11-20, and Left 100, Top 107"></div></a>
+        <figcaption>Settings: title and place</figcaption>
+      </figure>
+      <figure>
+        <a href="screenshots/New_Page.png"><div class="device"><img src="screenshots/New_Page.png" width="1404" height="1872" loading="lazy" alt="The new page at the end of a to-do notebook, with the header Meeting Friday 2026-11-20 on the notebook's own to-do template"></div></a>
+        <figcaption>The new page, on the notebook's own template</figcaption>
+      </figure>
+    </div>
+  </section>
+
   <section id="install" aria-labelledby="install-title">
     <h2 id="install-title">Install</h2>
     <ol class="steps" style="margin-top: 2rem">
@@ -268,6 +361,7 @@
       <li>The header is a text box and a keyword, not a real title: plugins can only make titles from handwriting in the open note.</li>
       <li>A text box with a link is no longer editable, because a tap follows the link. Remove the link to edit it.</li>
       <li>Nothing is undone automatically when a step fails. The plugin tells you what to clean up.</li>
+      <li>Your settings are kept on the device. After reinstalling the plugin you may have to set them again.</li>
       <li>So far it is only tested on a Supernote Nomad (A6X2). Tried it on another device? Let me know in an <a href="https://github.com/Vampie/SNAddPage/issues">issue</a>.</li>
     </ul>
   </section>
@@ -279,12 +373,89 @@
   <a href="https://github.com/Vampie/SNAddPage/releases">Releases</a>
 </footer>
 
+<dialog class="lightbox" id="lightbox" aria-label="Screenshot viewer">
+  <figure class="lb-figure">
+    <img id="lb-img" alt="" draggable="false">
+    <figcaption id="lb-caption" aria-live="polite"></figcaption>
+  </figure>
+  <button class="lb-btn lb-prev" id="lb-prev" type="button" aria-label="Previous screenshot">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+  </button>
+  <button class="lb-btn lb-next" id="lb-next" type="button" aria-label="Next screenshot">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+  </button>
+  <button class="lb-btn lb-close" id="lb-close" type="button" aria-label="Close">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+  </button>
+</dialog>
+
 <script>
   // Show the bar's hairline only once content scrolls underneath it.
   const bar = document.getElementById('bar');
   const update = () => bar.classList.toggle('scrolled', window.scrollY > 4);
   addEventListener('scroll', update, {passive: true});
   update();
+
+  // Lightbox (same as SNCalculator). Without JavaScript (or <dialog>) the links simply open the image.
+  const links = [...document.querySelectorAll('.gallery a')];
+  const dialog = document.getElementById('lightbox');
+  const img = document.getElementById('lb-img');
+  const caption = document.getElementById('lb-caption');
+  let index = 0;
+
+  function show(i) {
+    index = (i + links.length) % links.length; // wraps around at both ends
+    const link = links[index];
+    img.src = link.href;
+    img.alt = link.querySelector('img').alt;
+    caption.textContent =
+      `${link.closest('figure').querySelector('figcaption').textContent} · ${index + 1} / ${links.length}`;
+    for (const j of [index - 1, index + 1]) new Image().src = links[(j + links.length) % links.length].href;
+  }
+
+  if (typeof dialog.showModal === 'function') {
+    links.forEach((link, i) => link.addEventListener('click', e => {
+      e.preventDefault();
+      show(i);
+      dialog.showModal();
+    }));
+    document.getElementById('lb-prev').addEventListener('click', () => show(index - 1));
+    document.getElementById('lb-next').addEventListener('click', () => show(index + 1));
+    document.getElementById('lb-close').addEventListener('click', () => dialog.close());
+    dialog.addEventListener('keydown', e => {
+      if (e.key === 'ArrowLeft') show(index - 1);
+      if (e.key === 'ArrowRight') show(index + 1);
+    });
+    // A tap on the dark area around the image closes the viewer.
+    dialog.addEventListener('click', e => { if (e.target === dialog) dialog.close(); });
+
+    // Swipe: the image follows the finger, then the direction of the flick decides.
+    let startX = null, lastX = 0, lastT = 0, velocity = 0;
+    img.addEventListener('pointerdown', e => {
+      startX = lastX = e.clientX; lastT = e.timeStamp; velocity = 0;
+      img.setPointerCapture(e.pointerId);
+      img.style.transition = 'none';
+    });
+    img.addEventListener('pointermove', e => {
+      if (startX === null) return;
+      velocity = (e.clientX - lastX) / Math.max(1, e.timeStamp - lastT); // px per ms
+      lastX = e.clientX; lastT = e.timeStamp;
+      img.style.transform = `translateX(${e.clientX - startX}px)`;
+    });
+    const release = (e, cancelled) => {
+      if (startX === null) return;
+      const dx = e.clientX - startX;
+      startX = null;
+      img.style.transition = '';
+      img.style.transform = '';
+      if (cancelled) return;
+      // Ignore small nudges; past 30px a quick flick or a long drag changes the image.
+      const swipe = Math.abs(dx) < 30 ? 0 : Math.abs(velocity) > 0.3 ? velocity : Math.abs(dx) > 60 ? dx : 0;
+      if (swipe) show(index + (swipe < 0 ? 1 : -1));
+    };
+    img.addEventListener('pointerup', e => release(e, false));
+    img.addEventListener('pointercancel', e => release(e, true));
+  }
 </script>
 </body>
 </html>

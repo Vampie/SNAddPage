@@ -16,8 +16,8 @@
 
 A plugin for **Supernote** e-ink devices (Nomad, Manta, A5X, A6X). Select a few words
 in a note with the lasso, tap **Add meeting**, and pick a notebook. The plugin adds a
-page at the end of that notebook, writes `Meeting 2026-11-20` at the top, and turns
-your selection into a link to that page.
+page at the end of that notebook, writes a header such as `Meeting 2026-11-20` at the
+top, and turns your selection into a link to that page.
 
 Handy for an agenda or a to-do list: write the topic, link it to a page in your
 meetings notebook, and take the notes there.
@@ -29,6 +29,13 @@ Built with the official Supernote plugin SDK
 > For now this plugin is only tested on a **Supernote Nomad (A6X2)**. It should work on
 > the other models, but the place and size of the header may need tuning there.
 > Feedback from other devices is welcome.
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/Settings.png" width="300" alt="The Settings screen"><br><sub><b>Settings</b>: title and place</sub></td>
+    <td align="center"><img src="docs/screenshots/New_Page.png" width="300" alt="The new page with its header"><br><sub>The <b>new page</b>, on the notebook's own template</sub></td>
+  </tr>
+</table>
 
 ---
 
@@ -42,6 +49,8 @@ Built with the official Supernote plugin SDK
   your own template from `MyStyle`.
 - **Dated header**: `Meeting YYYY-MM-DD` (today, in the device's time) as a text box at
   the top left, and as a keyword, so the meeting shows up in the keyword list of the note.
+- **Your own header**: under *Settings*, type your own title with placeholders for the
+  date and time, and choose where it goes on the page.
 - **A real link**: your selection becomes a Supernote link (solid underline) to the new
   page. It keeps pointing to that page when you add pages before it later.
 - **Clear when something fails**: you see which step failed and what was already done,
@@ -77,9 +86,29 @@ What happens to the chosen notebook:
 | | |
 | --- | --- |
 | New page | Added after the last page, with the template of that last page. |
-| Header | `Meeting 2026-11-20` as a text box at the top left of the new page. |
+| Header | The title from *Settings* (default `Meeting 2026-11-20`) as a text box at the place from *Settings*. |
 | Keyword | The same text, on the new page. |
 | Link | Your selection points to the new page. |
+
+### Settings
+
+Tap **Settings** at the top of the notebook list.
+
+| Field | What it does |
+| --- | --- |
+| Title of the new page | Text with placeholders, filled in with the device's date and time when you add a page. Under the field, *Now:* shows what it gives right now. |
+| Left, Top | Where the header starts, in pixels from the top left corner of the page. A header that would not fit is moved back onto the page. |
+
+| Placeholder | Becomes | Placeholder | Becomes |
+| --- | --- | --- | --- |
+| `{date}` | `2026-11-20` | `{day}` | `20` |
+| `{time}` | `14:05` | `{hour}` | `14` |
+| `{year}` | `2026` | `{minute}` | `05` |
+| `{month}` | `11` | `{weekday}` | `Friday` |
+
+For example `Overleg {weekday} {day}/{month} {time}` gives `Overleg Friday 20/11 14:05`.
+**Save** keeps the settings, **Cancel** leaves them as they were, and **Defaults** fills in
+`Meeting {date}` at 100, 107 (save to keep).
 
 > [!TIP]
 > A text box with a link on it is no longer editable: a tap follows the link. That is how
@@ -97,6 +126,10 @@ already added, delete it yourself or use undo in the note.
   the header is a text box plus a keyword. It does not appear in the title list.
 - **Your own templates** must still be in `MyStyle`; otherwise the new page is blank and
   the plugin tells you so.
+- **Placeholders are case sensitive** (`{Date}` stays as typed), and `{weekday}` is always
+  in English.
+- **Settings live on the device**, in the plugin's own folder. After reinstalling the
+  plugin you may have to set them again.
 - **Full screen only**: the SDK has no floating or smaller plugin window.
 - **Only tested on a Supernote Nomad (A6X2)** so far.
 
@@ -124,10 +157,11 @@ plugin.
 
 ```
 ├── index.js              Plugin entry: lasso toolbar button and its listener
-├── App.tsx               UI: note list, progress, errors
+├── App.tsx               UI: note list, settings, progress, errors
 ├── src/
 │   ├── addMeeting.ts     The flow: list notes, add the page, header, keyword, link
-│   ├── meeting.ts        Pure helpers: title, list order, folder scan, header box, template names
+│   ├── meeting.ts        Pure helpers: placeholders, settings, list order, folder scan, header box, template names
+│   ├── settings.ts       Saves and loads the settings
 │   └── presses.ts        Passes button presses from index.js to the UI
 ├── __tests__/            Jest tests for the helpers
 ├── PluginConfig.json     Plugin name, version and permissions
@@ -153,6 +187,11 @@ Found while building this, with `sn-plugin-lib` 0.1.65 on a Nomad:
   image from `MyStyle` (found by file name or by the md5 part), then the file name
   without `user_`. One of those works; which one is not logged.
 - `setLassoStrokeLink` also works on a text box in the lasso.
+- The SDK has no storage API and cannot write file contents. The settings are kept as
+  the **name of a folder** in `PluginManager.getPluginDirPath()`
+  (`settings/s1_<encodeURIComponent(JSON)>`): `FileUtils.makeDir`, `listFiles` and
+  `deleteDir` work there without any permission.
+- A React Native `TextInput` works in a plugin view: the device keyboard comes up.
 
 ## Permissions
 
